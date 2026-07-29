@@ -246,38 +246,29 @@
   }
 
   // ---------- Persistence ----------
+  // Running outside Claude, so we persist with localStorage: instant, no
+  // network round trip, and it survives refreshes on this device/browser.
   let saveTimer = null;
 
-  async function persistOnce(){
-    const payload = JSON.stringify({ characterFields, characters, scenes });
-    await window.storage.set(DATA_KEY, payload, false);
-  }
-
-  async function persist(attempt){
-    attempt = attempt || 1;
+  function persist(){
     try{
-      await persistOnce();
+      const payload = JSON.stringify({ characterFields, characters, scenes });
+      localStorage.setItem(DATA_KEY, payload);
       flashSaved(false);
     }catch(e){
-      if(attempt < 5){
-        // Storage occasionally hiccups; retry quietly with backoff before
-        // bothering the user with anything.
-        setTimeout(()=> persist(attempt + 1), attempt * 700);
-      }else{
-        console.error('Save failed after 5 attempts', e);
-        flashSaved(true);
-      }
+      console.error('Save failed', e);
+      flashSaved(true);
     }
   }
 
   function scheduleSave(){
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(()=> persist(1), 500);
+    saveTimer = setTimeout(persist, 400);
   }
 
   function flashSaved(isError){
     const el = document.getElementById('saveIndicator');
-    el.textContent = isError ? 'could not save, retrying...' : 'saved';
+    el.textContent = isError ? 'could not save' : 'saved';
     el.classList.toggle('error', !!isError);
     el.classList.add('show');
     clearTimeout(flashSaved._t);
@@ -286,11 +277,11 @@
     }
   }
 
-  async function loadAll(){
+  function loadAll(){
     try{
-      const res = await window.storage.get(DATA_KEY, false);
-      if(res && res.value){
-        const parsed = JSON.parse(res.value);
+      const raw = localStorage.getItem(DATA_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
         characterFields = parsed.characterFields || [];
         characters = parsed.characters || [];
         scenes = parsed.scenes || [];
