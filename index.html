@@ -27,7 +27,7 @@
   }
   ::selection{ background:var(--accent-dim); color:#fff; }
 
-  .app{ max-width:960px; margin:0 auto; padding:32px 20px 80px; }
+  .app{ max-width:1440px; margin:0 auto; padding:32px 36px 80px; }
 
   header.top{
     display:flex; align-items:baseline; justify-content:space-between;
@@ -38,6 +38,7 @@
     margin:0; letter-spacing:-0.01em;
   }
   header.top h1 span{ color:var(--accent); }
+  .header-actions{ display:flex; gap:8px; }
 
   nav.tabs{
     display:flex; gap:2px; margin-bottom:28px;
@@ -80,48 +81,60 @@
   /* ---------- Characters ---------- */
   .char-toolbar{ margin-bottom:20px; }
   .char-grid{
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
-    gap:18px;
+    display:grid; grid-template-columns:repeat(2, 1fr);
+    gap:26px;
+  }
+  @media (max-width: 760px){
+    .char-grid{ grid-template-columns:1fr; }
   }
   .char-card{
     background:var(--surface); border:1px solid var(--border);
-    border-radius:10px; padding:18px; position:relative;
+    border-radius:14px; padding:28px; position:relative;
     border-top:3px solid var(--accent-dim);
   }
+  .char-card.dragging{ opacity:0.55; }
   .char-card .card-head{
-    display:flex; align-items:flex-start; gap:8px; margin-bottom:14px;
+    display:flex; align-items:flex-start; gap:10px; margin-bottom:18px;
   }
+  .card-drag-handle{
+    cursor:grab; color:var(--muted); font-size:1.1rem; line-height:1;
+    padding:4px 6px; margin-top:2px; user-select:none; touch-action:none;
+    border-radius:4px;
+  }
+  .card-drag-handle:hover{ color:var(--accent); background:rgba(209,160,84,0.1); }
+  .card-drag-handle:active{ cursor:grabbing; }
   .name-input{
     flex:1; background:none; border:none; border-bottom:1px solid transparent;
-    font-family:'Fraunces', serif; font-weight:600; font-size:1.25rem;
+    font-family:'Fraunces', serif; font-weight:600; font-size:1.5rem;
     color:var(--text); padding:2px 0; outline:none;
   }
   .name-input::placeholder{ color:var(--muted); font-weight:400; }
   .name-input:focus{ border-bottom:1px solid var(--accent); }
 
   .field-row{
-    display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;
+    display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;
   }
   .field-label{
-    width:38%; flex-shrink:0;
-    font-family:'JetBrains Mono', monospace; font-size:0.68rem;
+    width:30%; flex-shrink:0;
+    font-family:'JetBrains Mono', monospace; font-size:0.74rem;
     text-transform:uppercase; letter-spacing:0.05em; color:var(--sage);
     background:none; border:none; border-bottom:1px dashed var(--border);
-    padding:5px 2px; outline:none;
+    padding:7px 2px; outline:none;
   }
   .field-label:focus{ border-bottom:1px dashed var(--accent); color:var(--accent); }
   .field-value{
-    flex:1; font-family:'JetBrains Mono', monospace; font-size:0.82rem;
+    flex:1; font-family:'JetBrains Mono', monospace; font-size:0.92rem;
     background:var(--surface-raised); color:var(--text); border:1px solid var(--border);
-    border-radius:5px; padding:6px 8px; resize:vertical; min-height:34px; outline:none;
+    border-radius:6px; padding:10px 12px; resize:none; min-height:64px; outline:none;
+    line-height:1.5; overflow:hidden;
   }
   .field-value:focus{ border-color:var(--accent); }
-  .field-row .icon-btn{ margin-top:4px; }
+  .field-row .icon-btn{ margin-top:6px; }
 
   .add-field-btn{
-    font-family:'JetBrains Mono', monospace; font-size:0.72rem;
+    font-family:'JetBrains Mono', monospace; font-size:0.76rem;
     color:var(--muted); background:none; border:none; cursor:pointer;
-    padding:6px 2px; letter-spacing:0.03em;
+    padding:8px 2px; letter-spacing:0.03em;
   }
   .add-field-btn:hover{ color:var(--accent); }
 
@@ -163,8 +176,8 @@
   .scene-desc{
     width:100%; background:var(--surface-raised); color:var(--text);
     border:1px solid var(--border); border-radius:6px; padding:10px 12px;
-    font-family:'Inter', sans-serif; font-size:0.95rem; resize:vertical; min-height:44px;
-    outline:none; margin-bottom:12px;
+    font-family:'Inter', sans-serif; font-size:0.95rem; resize:none; min-height:44px;
+    outline:none; margin-bottom:12px; overflow:hidden;
   }
   .scene-desc:focus{ border-color:var(--accent); }
   .scene-desc::placeholder{ color:var(--muted); }
@@ -202,7 +215,11 @@
 <div class="app">
   <header class="top">
     <h1>Script<span>Room</span></h1>
-    <button class="btn" id="downloadBtn">⬇ Download backup</button>
+    <div class="header-actions">
+      <button class="btn" id="uploadBtn">⬆ Upload</button>
+      <input type="file" id="uploadInput" accept="application/json,.json" hidden>
+      <button class="btn" id="downloadBtn">⬇ Download</button>
+    </div>
   </header>
 
   <nav class="tabs">
@@ -237,6 +254,14 @@
   let scenes = [];
 
   function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+  // Grows a textarea to fit its content exactly, no scrollbar, no manual
+  // drag handle. Height is derived from content every time, so there's
+  // nothing separate to persist or lose on rebuild/reload.
+  function autoGrowTextarea(el){
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
 
   function defaultFields(){
     return [
@@ -305,70 +330,103 @@
   });
 
   // ---------- Characters ----------
+  // addCharacter/addFieldGlobally update the DOM incrementally (append/insert)
+  // instead of calling a full renderCharacters() rebuild. Rebuilding every
+  // textarea on every keystroke-adjacent action was what reset the
+  // user-resized field-value bounds (CSS `resize:vertical` state lives on
+  // the DOM node, not in our data model), so we only ever recreate cards
+  // that actually need to change.
   function addCharacter(){
     if(characterFields.length === 0){
       characterFields = defaultFields();
     }
-    characters.push({ id: uid('c'), name: '', values: {} });
-    renderCharacters();
+    const ch = { id: uid('c'), name: '', values: {} };
+    characters.push(ch);
+
+    const grid = document.getElementById('charGrid');
+    const empty = grid.querySelector('.empty-state');
+    if(empty) empty.remove();
+
+    const card = buildCharacterCard(ch);
+    grid.appendChild(card);
     scheduleSave();
-    const inputs = document.querySelectorAll('.char-card .name-input');
-    if(inputs.length) inputs[inputs.length-1].focus();
+    const nameInput = card.querySelector('.name-input');
+    if(nameInput) nameInput.focus();
   }
 
   function addFieldGlobally(){
-    characterFields.push({ id: uid('f'), label: 'New field' });
-    renderCharacters();
+    const f = { id: uid('f'), label: 'New field' };
+    characterFields.push(f);
+
+    document.querySelectorAll('.char-card').forEach(card=>{
+      const ch = characters.find(c=> c.id === card.dataset.id);
+      if(!ch) return;
+      const addBtn = card.querySelector('.add-field-btn');
+      const row = renderFieldRow(ch, f);
+      card.insertBefore(row, addBtn);
+    });
     scheduleSave();
   }
 
   function removeFieldGlobally(fieldId){
     characterFields = characterFields.filter(f=> f.id !== fieldId);
     characters.forEach(ch=>{ delete ch.values[fieldId]; });
-    renderCharacters();
+    document.querySelectorAll('.field-row[data-field-id="' + fieldId + '"]').forEach(row=> row.remove());
     scheduleSave();
+  }
+
+  function buildCharacterCard(ch){
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    card.dataset.id = ch.id;
+
+    const head = document.createElement('div');
+    head.className = 'card-head';
+
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'card-drag-handle';
+    dragHandle.title = 'Drag to reorder';
+    dragHandle.textContent = '⠿';
+    head.appendChild(dragHandle);
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'name-input';
+    nameInput.placeholder = 'Character name';
+    nameInput.value = ch.name;
+    nameInput.addEventListener('input', ()=>{ ch.name = nameInput.value; scheduleSave(); syncSceneChipLabels(); });
+    const delCharBtn = document.createElement('button');
+    delCharBtn.className = 'icon-btn';
+    delCharBtn.title = 'Remove character';
+    delCharBtn.textContent = '✕';
+    delCharBtn.addEventListener('click', ()=>{
+      characters = characters.filter(c=>c.id !== ch.id);
+      scenes.forEach(sc=> sc.characterIds = sc.characterIds.filter(id=> id !== ch.id));
+      renderCharacters(); renderScenes(); scheduleSave();
+    });
+    head.appendChild(nameInput);
+    head.appendChild(delCharBtn);
+    card.appendChild(head);
+
+    characterFields.forEach(f=>{
+      card.appendChild(renderFieldRow(ch, f));
+    });
+
+    const addFieldBtn = document.createElement('button');
+    addFieldBtn.className = 'add-field-btn';
+    addFieldBtn.textContent = '+ add field to all characters';
+    addFieldBtn.addEventListener('click', addFieldGlobally);
+    card.appendChild(addFieldBtn);
+
+    attachCharDragHandlers(dragHandle, card, ch.id);
+
+    return card;
   }
 
   function renderCharacters(){
     const grid = document.getElementById('charGrid');
     grid.innerHTML = '';
 
-    characters.forEach(ch=>{
-      const card = document.createElement('div');
-      card.className = 'char-card';
-
-      const head = document.createElement('div');
-      head.className = 'card-head';
-      const nameInput = document.createElement('input');
-      nameInput.className = 'name-input';
-      nameInput.placeholder = 'Character name';
-      nameInput.value = ch.name;
-      nameInput.addEventListener('input', ()=>{ ch.name = nameInput.value; scheduleSave(); syncSceneChipLabels(); });
-      const delCharBtn = document.createElement('button');
-      delCharBtn.className = 'icon-btn';
-      delCharBtn.title = 'Remove character';
-      delCharBtn.textContent = '✕';
-      delCharBtn.addEventListener('click', ()=>{
-        characters = characters.filter(c=>c.id !== ch.id);
-        scenes.forEach(sc=> sc.characterIds = sc.characterIds.filter(id=> id !== ch.id));
-        renderCharacters(); renderScenes(); scheduleSave();
-      });
-      head.appendChild(nameInput);
-      head.appendChild(delCharBtn);
-      card.appendChild(head);
-
-      characterFields.forEach(f=>{
-        card.appendChild(renderFieldRow(ch, f));
-      });
-
-      const addFieldBtn = document.createElement('button');
-      addFieldBtn.className = 'add-field-btn';
-      addFieldBtn.textContent = '+ add field to all characters';
-      addFieldBtn.addEventListener('click', addFieldGlobally);
-      card.appendChild(addFieldBtn);
-
-      grid.appendChild(card);
-    });
+    characters.forEach(ch=> grid.appendChild(buildCharacterCard(ch)));
 
     if(characters.length === 0){
       const empty = document.createElement('div');
@@ -379,9 +437,62 @@
     }
   }
 
+  // ---------- Characters: drag to reorder ----------
+  // Grid layout (wraps across rows/columns), so unlike the scene filmstrip
+  // we can't reorder from vertical distance alone. Instead we hit-test which
+  // card the pointer is currently over and swap that card's position with
+  // the one being dragged.
+  let charDrag = null;
+
+  function attachCharDragHandlers(handle, card, chId){
+    handle.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      charDrag = { charId: chId, pointerId: e.pointerId };
+      card.classList.add('dragging');
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', onCharDragMove);
+    handle.addEventListener('pointerup', onCharDragEnd);
+    handle.addEventListener('pointercancel', onCharDragEnd);
+  }
+
+  function onCharDragMove(e){
+    if(!charDrag || e.pointerId !== charDrag.pointerId) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if(!el) return;
+    const targetCard = el.closest('.char-card');
+    if(!targetCard) return;
+    const targetId = targetCard.dataset.id;
+    if(!targetId || targetId === charDrag.charId) return;
+
+    const fromIdx = characters.findIndex(c=> c.id === charDrag.charId);
+    const toIdx = characters.findIndex(c=> c.id === targetId);
+    if(fromIdx < 0 || toIdx < 0) return;
+
+    const [moved] = characters.splice(fromIdx, 1);
+    characters.splice(toIdx, 0, moved);
+    renderCharacters();
+
+    const newCard = document.querySelector('.char-card[data-id="' + charDrag.charId + '"]');
+    if(newCard){
+      newCard.classList.add('dragging');
+      const newHandle = newCard.querySelector('.card-drag-handle');
+      try{ newHandle.setPointerCapture(charDrag.pointerId); }catch(err){}
+    }
+  }
+
+  function onCharDragEnd(e){
+    if(!charDrag || e.pointerId !== charDrag.pointerId) return;
+    const card = document.querySelector('.char-card[data-id="' + charDrag.charId + '"]');
+    if(card) card.classList.remove('dragging');
+    charDrag = null;
+    scheduleSave();
+  }
+
   function renderFieldRow(ch, f){
     const row = document.createElement('div');
     row.className = 'field-row';
+    row.dataset.fieldId = f.id;
 
     const labelInput = document.createElement('input');
     labelInput.className = 'field-label';
@@ -399,7 +510,16 @@
     valueArea.className = 'field-value';
     valueArea.rows = 1;
     valueArea.value = ch.values[f.id] || '';
-    valueArea.addEventListener('input', ()=>{ ch.values[f.id] = valueArea.value; scheduleSave(); });
+    valueArea.addEventListener('input', ()=>{
+      ch.values[f.id] = valueArea.value;
+      autoGrowTextarea(valueArea);
+      scheduleSave();
+    });
+    // Height always tracks content, so there's no manual size to lose on
+    // rebuild/reload in the first place. Deferred a frame so it runs after
+    // the element is actually attached to the document (scrollHeight is 0
+    // on a detached node).
+    requestAnimationFrame(()=> autoGrowTextarea(valueArea));
 
     const delBtn = document.createElement('button');
     delBtn.className = 'icon-btn';
@@ -483,8 +603,13 @@
       desc.rows = 2;
       desc.placeholder = 'What happens in this scene?';
       desc.value = sc.description;
-      desc.addEventListener('input', ()=>{ sc.description = desc.value; scheduleSave(); });
+      desc.addEventListener('input', ()=>{
+        sc.description = desc.value;
+        autoGrowTextarea(desc);
+        scheduleSave();
+      });
       body.appendChild(desc);
+      requestAnimationFrame(()=> autoGrowTextarea(desc));
 
       const chipLabel = document.createElement('div');
       chipLabel.className = 'chip-label';
@@ -595,6 +720,41 @@
   }
 
   document.getElementById('downloadBtn').addEventListener('click', downloadBackup);
+
+  // ---------- Upload backup ----------
+  document.getElementById('uploadBtn').addEventListener('click', ()=>{
+    document.getElementById('uploadInput').click();
+  });
+
+  document.getElementById('uploadInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const parsed = JSON.parse(reader.result);
+        characterFields = Array.isArray(parsed.characterFields) ? parsed.characterFields : [];
+        characters = Array.isArray(parsed.characters) ? parsed.characters : [];
+        scenes = Array.isArray(parsed.scenes) ? parsed.scenes : [];
+        renderCharacters();
+        renderScenes();
+        scheduleSave();
+      }catch(err){
+        console.error('Upload failed', err);
+        alert('Could not read that file. Make sure it is a valid ScriptRoom backup JSON.');
+      }
+    };
+    reader.onerror = ()=>{
+      alert('Could not read that file.');
+    };
+    reader.readAsText(file);
+  });
+
+  window.addEventListener('resize', ()=>{
+    document.querySelectorAll('.field-value, .scene-desc').forEach(autoGrowTextarea);
+  });
 
   // ---------- Init ----------
   loadAll();
