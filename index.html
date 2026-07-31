@@ -125,7 +125,7 @@
   .field-value{
     flex:1; font-family:'JetBrains Mono', monospace; font-size:0.92rem;
     background:var(--surface-raised); color:var(--text); border:1px solid var(--border);
-    border-radius:6px; padding:10px 12px; resize:none; min-height:64px; outline:none;
+    border-radius:6px; padding:10px 12px; resize:none; min-height:44px; outline:none;
     line-height:1.5; overflow:hidden;
   }
   .field-value:focus{ border-color:var(--accent); }
@@ -172,7 +172,11 @@
   .scene-number{
     font-family:'JetBrains Mono', monospace; font-size:0.72rem;
     color:var(--accent); letter-spacing:0.08em; text-transform:uppercase;
+    background:none; border:none; outline:none; flex:1; min-width:0;
+    padding:2px 0; border-bottom:1px solid transparent;
   }
+  .scene-number:focus{ border-bottom:1px solid var(--accent); }
+  .scene-number::placeholder{ color:var(--accent); opacity:0.75; }
   .scene-desc{
     width:100%; background:var(--surface-raised); color:var(--text);
     border:1px solid var(--border); border-radius:6px; padding:10px 12px;
@@ -544,7 +548,7 @@
 
   // ---------- Scenes ----------
   function addScene(){
-    scenes.push({ id: uid('s'), description: '', characterIds: [] });
+    scenes.push({ id: uid('s'), title: '', description: '', characterIds: [] });
     renderScenes();
     scheduleSave();
     const areas = document.querySelectorAll('.scene-desc');
@@ -582,9 +586,11 @@
 
       const headRow = document.createElement('div');
       headRow.className = 'scene-head';
-      const num = document.createElement('div');
+      const num = document.createElement('input');
       num.className = 'scene-number';
-      num.textContent = 'Scene ' + String(idx+1).padStart(2,'0');
+      num.placeholder = 'Scene ' + String(idx+1).padStart(2,'0');
+      num.value = sc.title || '';
+      num.addEventListener('input', ()=>{ sc.title = num.value; scheduleSave(); });
       headRow.appendChild(num);
 
       const delBtn = document.createElement('button');
@@ -600,7 +606,7 @@
 
       const desc = document.createElement('textarea');
       desc.className = 'scene-desc';
-      desc.rows = 2;
+      desc.rows = 1;
       desc.placeholder = 'What happens in this scene?';
       desc.value = sc.description;
       desc.addEventListener('input', ()=>{
